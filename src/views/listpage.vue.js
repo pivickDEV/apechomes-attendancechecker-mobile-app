@@ -1,3 +1,4 @@
+import avatarIcon from "@/assets/image/avataricon.jpg";
 import { BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
 import axios from "axios";
 import { computed, ref, watch } from "vue";
@@ -41,7 +42,7 @@ watch(searchQuery, (val) => {
 // =======================
 // Search Employee List
 // =======================
-import { collection, doc, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase"; // make sure this is set up
 const search = async () => {
     if (searchQuery.value.trim() !== "") {
@@ -157,60 +158,48 @@ const navigateTo = (path) => {
 // =======================
 // QR SCAN
 // =======================
-import { getDoc } from "firebase/firestore";
+import { query, where } from "firebase/firestore";
 const startScan = async () => {
     try {
         isScanning.value = true;
         scannedData.value = null;
         showResultQR.value = false;
         isLoading.value = true;
-        // Ensure Google Barcode Scanner is available
+        // Ensure Google Barcode Scanner
         const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
-        if (!available) {
+        if (!available)
             await BarcodeScanner.installGoogleBarcodeScannerModule();
-        }
         // Scan QR
         const { barcodes } = await BarcodeScanner.scan();
-        if (barcodes.length === 0) {
-            alert("No QR code detected.");
-            return;
-        }
-        const value = barcodes[0].displayValue || "";
+        const value = barcodes[0]?.displayValue || "";
         if (!value) {
-            alert("Invalid QR code data");
+            alert("No valid QR code detected.");
             return;
         }
         scannedValue.value = value;
-        // 🔹 Fetch employee data from Firestore using scanned QR id
-        const docRef = doc(db, "qrscan", value); // assumes "qrscan" is collection name and value is docId
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            const data = docSnap.data();
+        // 🔹 Query Firestore for doc where field "qrid" == value
+        const q = query(collection(db, "qrscan"), where("qrid", "==", value));
+        const querySnap = await getDocs(q);
+        if (!querySnap.empty) {
+            const docData = querySnap.docs[0].data();
             scannedData.value = {
-                image: data.image || "",
-                emp_id: data.emp_id,
-                name: data.name,
-                department_name: data.department_name,
-                group_name: data.group_name,
-                qrid: data.qrid,
+                image: docData.image || "",
+                emp_id: docData.emp_id || "",
+                name: docData.name || "",
+                department_name: docData.department_name || "",
+                group_name: docData.group_name || "",
+                qrid: docData.qrid || "",
             };
             showResultQR.value = true;
         }
         else {
-            scannedData.value = null;
-            alert("No matching employee found for this QR code.");
+            alert("No matching employee found.");
         }
     }
     catch (err) {
-        if (err instanceof Error) {
-            if (!err.message.includes("cancelled")) {
-                console.error("Scan Error:", err.message);
-                alert(err.message);
-            }
-        }
-        else {
-            console.error("Unknown Error:", err);
-            alert("An unknown error occurred");
+        if (!err.message?.includes("cancelled")) {
+            console.error("Scan Error:", err);
+            alert(err.message || "An unknown error occurred");
         }
     }
     finally {
@@ -410,18 +399,16 @@ if (__VLS_ctx.showDetailsModal) {
         ...{ class: "text-black absolute left-[5%] w-[90%] h-[90%] top-[5%] flex flex-col justify-center bg-white rounded-xl align-center items-center z-20" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-        ...{ class: "font-bold text-lg mb-[1rem]" },
+        ...{ class: "font-bold text-lg mb-[1rem] text-black" },
     });
     if (__VLS_ctx.selectedEmployee) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "flex flex-col justify-center items-center text-black" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.img)({
-            ...{ class: "h-[10rem] rounded-[50%] w-[auto] mb-[2rem]" },
-            src: (__VLS_ctx.selectedEmployee.image
-                ? 'data:image/png;base64,' + __VLS_ctx.selectedEmployee.image
-                : '/src/assets/image/avataricon.jpg'),
-            alt: "Employee photo",
+            ...{ class: "h-40 w-40 rounded-[50%] mb-[2rem]" },
+            src: (__VLS_ctx.selectedEmployee?.image || __VLS_ctx.avatarIcon),
+            alt: "Employee Photo",
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "flex flex-col justify-center items-center text-black" },
@@ -647,16 +634,14 @@ if (__VLS_ctx.showResultQR) {
         ...{ class: "fixed left-[5%] w-[90%] h-[85%] top-[7.5%] flex flex-col justify-center bg-white rounded-xl items-center z-20" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-        ...{ class: "font-bold text-lg mb-[1rem]" },
+        ...{ class: "font-bold text-lg mb-[1rem] text-black" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "flex flex-col justify-center items-center text-black" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.img)({
-        ...{ class: "h-[10rem] rounded-[50%] w-auto mb-[2rem]" },
-        src: (__VLS_ctx.scannedData?.image
-            ? 'data:image/png;base64,' + __VLS_ctx.scannedData?.image
-            : '/src/assets/image/avataricon.jpg'),
+        ...{ class: "h-40 w-40 rounded-[50%] mb-[2rem]" },
+        src: (__VLS_ctx.selectedEmployee?.image || __VLS_ctx.avatarIcon),
         alt: "Employee Photo",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -977,14 +962,15 @@ var __VLS_26;
 /** @type {__VLS_StyleScopedClasses['font-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-lg']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-[1rem]']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-black']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-col']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-black']} */ ;
-/** @type {__VLS_StyleScopedClasses['h-[10rem]']} */ ;
+/** @type {__VLS_StyleScopedClasses['h-40']} */ ;
+/** @type {__VLS_StyleScopedClasses['w-40']} */ ;
 /** @type {__VLS_StyleScopedClasses['rounded-[50%]']} */ ;
-/** @type {__VLS_StyleScopedClasses['w-[auto]']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-[2rem]']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-col']} */ ;
@@ -1163,14 +1149,15 @@ var __VLS_26;
 /** @type {__VLS_StyleScopedClasses['font-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-lg']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-[1rem]']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-black']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-col']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-black']} */ ;
-/** @type {__VLS_StyleScopedClasses['h-[10rem]']} */ ;
+/** @type {__VLS_StyleScopedClasses['h-40']} */ ;
+/** @type {__VLS_StyleScopedClasses['w-40']} */ ;
 /** @type {__VLS_StyleScopedClasses['rounded-[50%]']} */ ;
-/** @type {__VLS_StyleScopedClasses['w-auto']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-[2rem]']} */ ;
 /** @type {__VLS_StyleScopedClasses['space-y-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-left']} */ ;
@@ -1305,6 +1292,7 @@ var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
+            avatarIcon: avatarIcon,
             AppHeader: AppHeader,
             searchQuery: searchQuery,
             selectedEmployee: selectedEmployee,

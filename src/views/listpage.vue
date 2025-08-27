@@ -118,19 +118,15 @@
         v-if="showDetailsModal"
         class="text-black absolute left-[5%] w-[90%] h-[90%] top-[5%] flex flex-col justify-center bg-white rounded-xl align-center items-center z-20"
       >
-        <h2 class="font-bold text-lg mb-[1rem]">Details:</h2>
+        <h2 class="font-bold text-lg mb-[1rem] text-black">Details:</h2>
         <div
           v-if="selectedEmployee"
           class="flex flex-col justify-center items-center text-black"
         >
           <img
-            class="h-[10rem] rounded-[50%] w-[auto] mb-[2rem]"
-            :src="
-              selectedEmployee.image
-                ? 'data:image/png;base64,' + selectedEmployee.image
-                : '/src/assets/image/avataricon.jpg'
-            "
-            alt="Employee photo"
+            class="h-40 w-40 rounded-[50%] mb-[2rem]"
+            :src="selectedEmployee?.image || avatarIcon"
+            alt="Employee Photo"
           />
 
           <div class="flex flex-col justify-center items-center text-black">
@@ -287,15 +283,11 @@
         v-if="showResultQR"
         class="fixed left-[5%] w-[90%] h-[85%] top-[7.5%] flex flex-col justify-center bg-white rounded-xl items-center z-20"
       >
-        <p class="font-bold text-lg mb-[1rem]">DETAILS:</p>
+        <p class="font-bold text-lg mb-[1rem] text-black">DETAILS:</p>
         <div class="flex flex-col justify-center items-center text-black">
           <img
-            class="h-[10rem] rounded-[50%] w-auto mb-[2rem]"
-            :src="
-              scannedData?.image
-                ? 'data:image/png;base64,' + scannedData?.image
-                : '/src/assets/image/avataricon.jpg'
-            "
+            class="h-40 w-40 rounded-[50%] mb-[2rem]"
+            :src="selectedEmployee?.image || avatarIcon"
             alt="Employee Photo"
           />
           <div id="modalContent" class="space-y-2">
@@ -419,6 +411,7 @@
 </template>
 
 <script setup lang="ts">
+import avatarIcon from "@/assets/image/avataricon.jpg";
 import { BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
 import axios from "axios";
 import { computed, ref, Ref, watch } from "vue";
@@ -484,7 +477,7 @@ watch(searchQuery, (val) => {
 // Search Employee List
 // =======================
 
-import { collection, doc, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase"; // make sure this is set up
 
 const search = async () => {
@@ -614,7 +607,7 @@ const navigateTo = (path: string) => {
 // QR SCAN
 // =======================
 
-import { getDoc } from "firebase/firestore";
+import { query, where } from "firebase/firestore";
 
 const startScan = async () => {
   try {
@@ -623,56 +616,44 @@ const startScan = async () => {
     showResultQR.value = false;
     isLoading.value = true;
 
-    // Ensure Google Barcode Scanner is available
+    // Ensure Google Barcode Scanner
     const { available } =
       await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
-    if (!available) {
-      await BarcodeScanner.installGoogleBarcodeScannerModule();
-    }
+    if (!available) await BarcodeScanner.installGoogleBarcodeScannerModule();
 
     // Scan QR
     const { barcodes } = await BarcodeScanner.scan();
-    if (barcodes.length === 0) {
-      alert("No QR code detected.");
-      return;
-    }
+    const value = barcodes[0]?.displayValue || "";
 
-    const value = barcodes[0].displayValue || "";
     if (!value) {
-      alert("Invalid QR code data");
+      alert("No valid QR code detected.");
       return;
     }
 
     scannedValue.value = value;
 
-    // 🔹 Fetch employee data from Firestore using scanned QR id
-    const docRef = doc(db, "qrscan", value); // assumes "qrscan" is collection name and value is docId
-    const docSnap = await getDoc(docRef);
+    // 🔹 Query Firestore for doc where field "qrid" == value
+    const q = query(collection(db, "qrscan"), where("qrid", "==", value));
+    const querySnap = await getDocs(q);
 
-    if (docSnap.exists()) {
-      const data = docSnap.data();
+    if (!querySnap.empty) {
+      const docData = querySnap.docs[0].data();
       scannedData.value = {
-        image: data.image || "",
-        emp_id: data.emp_id,
-        name: data.name,
-        department_name: data.department_name,
-        group_name: data.group_name,
-        qrid: data.qrid,
+        image: docData.image || "",
+        emp_id: docData.emp_id || "",
+        name: docData.name || "",
+        department_name: docData.department_name || "",
+        group_name: docData.group_name || "",
+        qrid: docData.qrid || "",
       };
       showResultQR.value = true;
     } else {
-      scannedData.value = null;
-      alert("No matching employee found for this QR code.");
+      alert("No matching employee found.");
     }
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      if (!err.message.includes("cancelled")) {
-        console.error("Scan Error:", err.message);
-        alert(err.message);
-      }
-    } else {
-      console.error("Unknown Error:", err);
-      alert("An unknown error occurred");
+  } catch (err: any) {
+    if (!err.message?.includes("cancelled")) {
+      console.error("Scan Error:", err);
+      alert(err.message || "An unknown error occurred");
     }
   } finally {
     isScanning.value = false;
