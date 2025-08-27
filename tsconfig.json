@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "allowJs": false, // Block JavaScript output
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+    },
+      "types": ["vue", "vite/client"],
+    "strict": true,
+    "jsx": "preserve",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue", "src/types"],
+  "exclude": ["node_modules", "dist"]
+}
+

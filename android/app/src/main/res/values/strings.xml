@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">apechomes_attendancechecker</string>
+    <string name="title_activity_main">apechomes_attendancechecker</string>
+    <string name="package_name">com.apechomes_attendancechecker</string>
+    <string name="custom_url_scheme">com.apechomes_attendancechecker</string>
+</resources>
